@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/refresh-metadata",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/check-loans",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

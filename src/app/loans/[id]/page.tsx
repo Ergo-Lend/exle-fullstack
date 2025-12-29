@@ -1,9 +1,8 @@
 'use client'
 
 import { use } from 'react'
-import { notFound } from 'next/navigation'
 import { LoanDetails } from '@/components/loan/loan-details'
-import { dummyLoans } from '@/data/dummy-loans'
+import { useLoansData } from '@/hooks/useLoansData'
 
 export default function LoanDetailPage({
   params,
@@ -11,7 +10,27 @@ export default function LoanDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const loan = dummyLoans.find((l) => l.loanId === id)
+  const { allLoans, isLoading, error } = useLoansData()
+
+  const loan = allLoans.find((l) => l.loanId === id)
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-screen-xl px-4 py-16 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading loan details...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-screen-xl px-4 py-16 text-center">
+        <h1 className="text-2xl font-semibold mb-4 text-destructive">Error</h1>
+        <p className="text-muted-foreground">Failed to load loan: {error}</p>
+      </div>
+    )
+  }
 
   if (!loan) {
     return (

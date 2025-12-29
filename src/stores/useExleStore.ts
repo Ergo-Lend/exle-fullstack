@@ -20,6 +20,10 @@ import {
   fetchLendBox,
   fetchCrowdFundBoxesByLoanId,
   fetchBoxByTokenId,
+  fetchAllCrowdfundBoxes,
+  getCrowdfundLoanIds,
+  getExleCrowdFundTokensAmount,
+  decodeCrowdfundLoanId,
   parseLoanBox,
   parseRepaymentBox,
   donationsFromExleMetadata,
@@ -217,9 +221,10 @@ export const useExleStore = create<ExleStore>()(
         set({ isLoading: true, error: null })
 
         try {
-          const [loanBoxes, repaymentBoxes, nodeInfo] = await Promise.all([
+          const [loanBoxes, repaymentBoxes, crowdfundBoxes, nodeInfo] = await Promise.all([
             fetchLoans(),
             fetchRepayments(),
+            fetchAllCrowdfundBoxes(),
             fetchNodeInfo(),
           ])
 
@@ -227,8 +232,29 @@ export const useExleStore = create<ExleStore>()(
             throw new Error('Failed to fetch node info')
           }
 
+          // Get loan IDs that have crowdfund boxes (these are Crowdloan type)
+          const crowdfundLoanIds = getCrowdfundLoanIds(crowdfundBoxes || [])
+
+          // Create a map of loanId -> funded amount from crowdfund boxes
+          const crowdfundFundedAmounts = new Map<string, bigint>()
+          for (const cfBox of crowdfundBoxes || []) {
+            const loanId = decodeCrowdfundLoanId(cfBox)
+            if (loanId) {
+              const fundedAmount = getExleCrowdFundTokensAmount(cfBox) ?? 0n
+              crowdfundFundedAmounts.set(loanId, fundedAmount)
+            }
+          }
+
           const loans = (loanBoxes || [])
-            .map((b) => parseLoanBox(b, nodeInfo))
+            .map((b) => {
+              // The loan token ID is at assets[1], not assets[0]
+              const loanTokenId = b.assets?.[1]?.tokenId
+              const isCrowdloan = crowdfundLoanIds.has(loanTokenId)
+              const loanType = isCrowdloan ? 'Crowdloan' : 'Solofund'
+              // For crowdloans, pass the funded amount from the crowdfund box
+              const crowdfundFundedAmount = isCrowdloan ? crowdfundFundedAmounts.get(loanTokenId) : undefined
+              return parseLoanBox(b, nodeInfo, loanType, crowdfundFundedAmount)
+            })
             .filter(Boolean) as Loan[]
 
           const repayments = (repaymentBoxes || [])
@@ -292,8 +318,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Create loan error:', error)
-          set({ error: 'Failed to create loan' })
-          return null
+          throw error
         }
       },
 
@@ -328,8 +353,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Fund loan error:', error)
-          set({ error: 'Failed to fund loan' })
-          return null
+          throw error
         }
       },
 
@@ -370,8 +394,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Repay loan error:', error)
-          set({ error: 'Failed to repay loan' })
-          return null
+          throw error
         }
       },
 
@@ -402,8 +425,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Withdraw loan error:', error)
-          set({ error: 'Failed to withdraw loan' })
-          return null
+          throw error
         }
       },
 
@@ -430,8 +452,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Withdraw from repayment error:', error)
-          set({ error: 'Failed to withdraw from repayment' })
-          return null
+          throw error
         }
       },
 
@@ -453,7 +474,7 @@ export const useExleStore = create<ExleStore>()(
 
           if (!window.ergo) throw new Error('Wallet not connected')
 
-          const signedLendTx = await window.ergo.sign_tx(unsignedLendTx)
+          const signedLendTx = await window.ergo.sign_tx(unsignedLendTx) as { outputs?: Array<{ assets?: Array<{ tokenId: string }> }> }
           const lendTxId = await window.ergo.submit_tx(signedLendTx)
 
           // Wait a moment for the transaction to be picked up
@@ -489,8 +510,7 @@ export const useExleStore = create<ExleStore>()(
           return crowdTxId
         } catch (error) {
           console.error('Create crowdfund loan error:', error)
-          set({ error: 'Failed to create crowdfund loan' })
-          return null
+          throw error
         }
       },
 
@@ -539,8 +559,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Fund crowdfund error:', error)
-          set({ error: 'Failed to fund crowdfund' })
-          return null
+          throw error
         }
       },
 
@@ -568,8 +587,7 @@ export const useExleStore = create<ExleStore>()(
           return txId
         } catch (error) {
           console.error('Withdraw from crowdfund error:', error)
-          set({ error: 'Failed to withdraw from crowdfund' })
-          return null
+          throw error
         }
       },
 

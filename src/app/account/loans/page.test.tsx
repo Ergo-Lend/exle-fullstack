@@ -8,10 +8,17 @@ vi.mock('@/stores/useExleStore', () => ({
   useExleStore: vi.fn(),
 }))
 
+// Mock the useLoansData hook
+vi.mock('@/hooks/useLoansData', () => ({
+  useLoansData: vi.fn(),
+}))
+
+import { useLoansData } from '@/hooks/useLoansData'
+
 // Mock the components
 vi.mock('@/components/loan/loan-widget', () => ({
-  LoanWidget: ({ loan }: { loan: { loanId: string; title: string } }) => (
-    <div data-testid={`loan-widget-${loan.loanId}`}>{loan.title}</div>
+  LoanWidget: ({ loan }: { loan: { loanId: string; loanTitle: string } }) => (
+    <div data-testid={`loan-widget-${loan.loanId}`}>{loan.loanTitle}</div>
   ),
 }))
 
@@ -23,45 +30,90 @@ vi.mock('@/components/loan/empty-loans', () => ({
 
 const TEST_USER_ADDRESS = '9testUserAddress'
 
-// Mock dummy loans
-vi.mock('@/data/dummy-loans', () => ({
-  dummyLoans: [
-    {
-      loanId: '1',
-      title: 'Test Loan 1',
-      phase: 'loan',
-      creator: '9testUserAddress',
-    },
-    {
-      loanId: '2',
-      title: 'Test Loan 2',
-      phase: 'loan',
-      creator: '9testUserAddress',
-    },
-    {
-      loanId: '3',
-      title: 'Other User Loan',
-      phase: 'loan',
-      creator: '9otherAddress',
-    },
-    {
-      loanId: '4',
-      title: 'Repayment',
-      phase: 'repayment',
-      creator: '9testUserAddress',
-    },
-  ],
-}))
+const mockLoans = [
+  {
+    loanId: '1',
+    loanTitle: 'Test Loan 1',
+    phase: 'loan',
+    creator: '9testUserAddress',
+  },
+  {
+    loanId: '2',
+    loanTitle: 'Test Loan 2',
+    phase: 'loan',
+    creator: '9testUserAddress',
+  },
+  {
+    loanId: '3',
+    loanTitle: 'Other User Loan',
+    phase: 'loan',
+    creator: '9otherAddress',
+  },
+  {
+    loanId: '4',
+    loanTitle: 'Repayment',
+    phase: 'repayment',
+    creator: '9testUserAddress',
+  },
+]
 
 describe('MyLoansPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
+  describe('Loading state', () => {
+    it('should show loading spinner', () => {
+      vi.mocked(useExleStore).mockImplementation((selector) => {
+        return selector({ changeAddress: TEST_USER_ADDRESS } as any)
+      })
+      vi.mocked(useLoansData).mockReturnValue({
+        loans: [],
+        repayments: [],
+        allLoans: [],
+        isLoading: true,
+        error: null,
+        reload: vi.fn(),
+      })
+
+      render(<MyLoansPage />)
+
+      expect(screen.getByText(/loading your loans/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Error state', () => {
+    it('should show error message', () => {
+      vi.mocked(useExleStore).mockImplementation((selector) => {
+        return selector({ changeAddress: TEST_USER_ADDRESS } as any)
+      })
+      vi.mocked(useLoansData).mockReturnValue({
+        loans: [],
+        repayments: [],
+        allLoans: [],
+        isLoading: false,
+        error: 'Network error',
+        reload: vi.fn(),
+      })
+
+      render(<MyLoansPage />)
+
+      expect(screen.getByText(/failed to load loans.*network error/i)).toBeInTheDocument()
+    })
+  })
+
   describe('Wallet not connected', () => {
     it('should show connect wallet message', () => {
       vi.mocked(useExleStore).mockImplementation((selector) => {
         return selector({ changeAddress: '' } as any)
+      })
+      vi.mocked(useLoansData).mockReturnValue({
+        loans: mockLoans,
+        repayments: [],
+        allLoans: mockLoans,
+        isLoading: false,
+        error: null,
+        reload: vi.fn(),
       })
 
       render(<MyLoansPage />)
@@ -76,6 +128,14 @@ describe('MyLoansPage', () => {
     beforeEach(() => {
       vi.mocked(useExleStore).mockImplementation((selector) => {
         return selector({ changeAddress: TEST_USER_ADDRESS } as any)
+      })
+      vi.mocked(useLoansData).mockReturnValue({
+        loans: mockLoans,
+        repayments: [],
+        allLoans: mockLoans,
+        isLoading: false,
+        error: null,
+        reload: vi.fn(),
       })
     })
 
@@ -124,15 +184,20 @@ describe('MyLoansPage', () => {
       vi.mocked(useExleStore).mockImplementation((selector) => {
         return selector({ changeAddress: TEST_USER_ADDRESS } as any)
       })
+      vi.mocked(useLoansData).mockReturnValue({
+        loans: [],
+        repayments: [],
+        allLoans: [],
+        isLoading: false,
+        error: null,
+        reload: vi.fn(),
+      })
 
-      // Re-mock dummy loans with none matching
-      vi.doMock('@/data/dummy-loans', () => ({
-        dummyLoans: [],
-      }))
-
-      // Note: This test checks the behavior - but since we can't easily
-      // re-mock mid-test, we verify the empty state logic exists
       render(<MyLoansPage />)
+
+      expect(screen.getByTestId('empty-loans')).toHaveTextContent(
+        "You haven't created any loans yet."
+      )
     })
   })
 })

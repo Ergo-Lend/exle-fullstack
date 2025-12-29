@@ -325,7 +325,10 @@ describe('LoanStepper', () => {
 
       await user.click(screen.getByRole('button', { name: /pay via browser wallet/i }))
 
-      expect(screen.getByText(/creating loan/i)).toBeInTheDocument()
+      // Button shows loading state - either "Waiting for signature" or "Creating loan"
+      expect(
+        screen.getByText(/waiting for signature|creating loan/i)
+      ).toBeInTheDocument()
     })
 
     it('should show success message on successful creation', async () => {
@@ -343,7 +346,7 @@ describe('LoanStepper', () => {
     })
 
     it('should show error message on failed creation', async () => {
-      mockCreateSolofundLoan.mockResolvedValue(null)
+      mockCreateSolofundLoan.mockRejectedValue(new Error('Service box not found'))
 
       const user = userEvent.setup()
       render(<LoanStepper />)
@@ -352,12 +355,12 @@ describe('LoanStepper', () => {
       await user.click(screen.getByRole('button', { name: /pay via browser wallet/i }))
 
       await waitFor(() => {
-        expect(screen.getByText(/transaction failed/i)).toBeInTheDocument()
+        expect(screen.getByText(/service box not found/i)).toBeInTheDocument()
       })
     })
 
-    it('should show specific error message from exception', async () => {
-      mockCreateSolofundLoan.mockRejectedValue(new Error('Wallet rejected'))
+    it('should show user-friendly error message for wallet rejection', async () => {
+      mockCreateSolofundLoan.mockRejectedValue(new Error('User rejected the transaction'))
 
       const user = userEvent.setup()
       render(<LoanStepper />)
@@ -366,7 +369,7 @@ describe('LoanStepper', () => {
       await user.click(screen.getByRole('button', { name: /pay via browser wallet/i }))
 
       await waitFor(() => {
-        expect(screen.getByText(/wallet rejected/i)).toBeInTheDocument()
+        expect(screen.getByText(/transaction was cancelled/i)).toBeInTheDocument()
       })
     })
 

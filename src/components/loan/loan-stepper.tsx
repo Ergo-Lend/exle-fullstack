@@ -77,6 +77,7 @@ export function LoanStepper() {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [paymentConfirmed, setPaymentConfirmed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [waitingForSignature, setWaitingForSignature] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdLoanId, setCreatedLoanId] = useState<string | null>(null)
 
@@ -141,10 +142,15 @@ export function LoanStepper() {
 
       let txId: string | null = null
 
-      if (selectedLoanType === 'Solofund') {
-        txId = await createSolofundLoan(loanParams)
-      } else {
-        txId = await createCrowdfundLoan(loanParams)
+      setWaitingForSignature(true)
+      try {
+        if (selectedLoanType === 'Solofund') {
+          txId = await createSolofundLoan(loanParams)
+        } else {
+          txId = await createCrowdfundLoan(loanParams)
+        }
+      } finally {
+        setWaitingForSignature(false)
       }
 
       if (txId) {
@@ -155,9 +161,21 @@ export function LoanStepper() {
       }
     } catch (error) {
       console.error('Create loan error:', error)
-      setSubmitError(error instanceof Error ? error.message : 'Failed to create loan')
+      const message = error instanceof Error ? error.message : String(error)
+
+      // Map common wallet errors to user-friendly messages
+      if (message.toLowerCase().includes('rejected') || message.toLowerCase().includes('cancelled') || message.toLowerCase().includes('canceled')) {
+        setSubmitError('Transaction was cancelled. Please try again.')
+      } else if (message.toLowerCase().includes('timeout') || message.toLowerCase().includes('timed out')) {
+        setSubmitError('Wallet signing took too long. Please try again.')
+      } else if (message.toLowerCase().includes('not connected')) {
+        setSubmitError('Wallet not connected. Please connect your wallet and try again.')
+      } else {
+        setSubmitError(message || 'Failed to create loan')
+      }
     } finally {
       setIsSubmitting(false)
+      setWaitingForSignature(false)
     }
   }
 
@@ -498,9 +516,16 @@ export function LoanStepper() {
             </div>
             <p className="text-lg font-medium">Nautilus Wallet</p>
             {isSubmitting && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Please confirm the transaction in your wallet...
-              </p>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {waitingForSignature ? (
+                  <>
+                    <p className="font-medium text-exle-accent">Please sign the transaction in your Nautilus wallet...</p>
+                    <p className="mt-1 text-xs">Check for the Nautilus popup. If you don&apos;t see it, click the Nautilus icon in your browser.</p>
+                  </>
+                ) : (
+                  <p>Preparing transaction...</p>
+                )}
+              </div>
             )}
           </div>
 
@@ -516,7 +541,7 @@ export function LoanStepper() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating loan...
+                  {waitingForSignature ? 'Waiting for signature...' : 'Creating loan...'}
                 </>
               ) : (
                 'Pay via browser wallet'

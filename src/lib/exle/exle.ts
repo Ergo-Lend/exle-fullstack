@@ -558,6 +558,51 @@ export function fetchCrowdFundBoxesByLoanId(loanId: string) {
 	return fetchUnspentBoxesByErgoTree(crowdErgoTree);
 }
 
+export async function fetchAllCrowdfundBoxes(): Promise<NodeBox[]> {
+	const maybeCrowdfundBoxes = await fetchBoxesByTokenId(EXLE_SLE_CROWD, 0, 100);
+	return maybeCrowdfundBoxes.filter(isCrowdFundBox);
+}
+
+export function getCrowdfundLoanIds(crowdfundBoxes: NodeBox[]): Set<string> {
+	const loanIds = crowdfundBoxes.map(decodeCrowdfundLoanId).filter(Boolean);
+	return new Set(loanIds);
+}
+
+/**
+ * Fetch contributors for a specific crowdfund loan by its loan ID
+ */
+export async function fetchCrowdfundContributors(
+	loanId: string,
+	tokenDecimals: number = 2,
+	tokenTicker: string = 'SigUSD'
+): Promise<CrowdfundContributor[]> {
+	// Find the crowdfund box for this loan
+	const crowdfundBoxes = await fetchCrowdFundBoxesByLoanId(loanId);
+
+	if (crowdfundBoxes.length === 0) {
+		return [];
+	}
+
+	const crowdfundBox = crowdfundBoxes[0];
+	const crowdfundTokenId = crowdfundBox.assets[1]?.tokenId;
+
+	if (!crowdfundTokenId) {
+		return [];
+	}
+
+	// Fetch all boxes that have this crowdfund token (historical and current)
+	const allBoxes = await fetchAllBoxesByTokenId(crowdfundTokenId, 0, 100);
+
+	// Get unique transaction IDs
+	const txIds = [...new Set(allBoxes.map((b) => b.transactionId))];
+
+	// Fetch all transactions
+	const transactions = await Promise.all(txIds.map(fetchTransactionById));
+
+	// Extract contributors
+	return getCrowdfundContributors(transactions, loanId, tokenDecimals, tokenTicker);
+}
+
 export type Donation = {
 	loanId: string;
 	type: LoanType;
@@ -686,7 +731,7 @@ export function parseRepaymentBox(box: NodeBox, nodeInfo: NodeInfo): Loan | unde
 		loanTitle: project[0],
 		loanDescription: project.slice(1).join('\n'),
 		repaymentPeriod: '' + blocksToDays(funding.repaymentHeightLength), // TODO: - height?
-		interestRate: `${(100 / Number(funding.interestRate)).toFixed(1)} %`,
+		interestRate: `${(Number(funding.interestRate) / 10).toFixed(1)}%`,
 		fundingGoal: repaymentGoal,
 		fundingToken: token.ticker,
 		fundedAmount: repaidAmount + ' ' + token.ticker,
@@ -700,28 +745,47 @@ export function parseRepaymentBox(box: NodeBox, nodeInfo: NodeInfo): Loan | unde
 	return repayment;
 }
 
-export function parseLoanBox(box: NodeBox, nodeInfo: NodeInfo): Loan | undefined {
+export function parseLoanBox(
+	box: NodeBox,
+	nodeInfo: NodeInfo,
+	loanType: LoanType = 'Solofund',
+	crowdfundFundedAmount?: bigint
+): Loan | undefined {
 	if (box.assets.length < 2 || !box.additionalRegisters.R7) return;
 	const token = parseLoanToken(box);
 	if (!token) return;
 
 	const funding = decodeExleFundingInfo(box);
 	const project = decodeExleProjectDetails(box);
-	const { fundedAmount, fundingLevel } = getExleLendTokensStatus(box);
+
+	// For crowdloans, use the funded amount from the crowdfund box
+	// For soloFund, use the funded amount from the lend box
+	let fundedAmount: bigint;
+	let fundingLevel: bigint;
+
+	if (loanType === 'Crowdloan' && crowdfundFundedAmount !== undefined) {
+		fundedAmount = crowdfundFundedAmount;
+		fundingLevel = funding.fundingGoal > 0n ? (fundedAmount * 100n) / funding.fundingGoal : 0n;
+	} else {
+		const lendStatus = getExleLendTokensStatus(box);
+		fundedAmount = lendStatus.fundedAmount;
+		fundingLevel = lendStatus.fundingLevel;
+	}
 
 	const fundingGoal = Number(Number(funding.fundingGoal) / 10 ** token.decimals).toFixed(2);
+	const fundedAmountFormatted = Number(Number(fundedAmount) / 10 ** token.decimals).toFixed(2);
 
 	const repayment = {
 		phase: 'loan' as const,
-		loanId: box.assets[0].tokenId,
-		loanType: 'Solofund',
+		loanId: box.assets[1].tokenId,
+		loanType: loanType,
 		loanTitle: project[0],
 		loanDescription: project.slice(1).join('\n'),
 		repaymentPeriod: '' + blocksToDays(funding.repaymentHeightLength), // TODO: - height?
-		interestRate: `${(100 / Number(funding.interestRate)).toFixed(1)} %`,
+		interestRate: `${(Number(funding.interestRate) / 10).toFixed(1)}%`,
 		fundingGoal: fundingGoal,
 		fundingToken: token.ticker,
-		fundedAmount: fundedAmount + ' ' + token.ticker,
+		fundedAmount: fundedAmountFormatted + ' ' + token.ticker,
 		fundedPercentage: Number(fundingLevel),
 		daysLeft: blocksToDays(funding.deadlineHeight - BigInt(nodeInfo.fullHeight)),
 		creator: ErgoAddress.fromErgoTree(decodeExleBorrower(box)).toString(),
@@ -1264,6 +1328,68 @@ export function getExleCrowdFundTokensTokenId(box: NodeBox): string | undefined 
 	} else {
 		return undefined;
 	}
+}
+
+export type CrowdfundContributor = {
+	address: string;
+	amount: string;
+	rawAmount: bigint;
+	timestamp: number;
+	txId: string;
+};
+
+/**
+ * Extract contributors from crowdfund transaction history for a specific loan
+ */
+export function getCrowdfundContributors(
+	crowdfundHistoryTxs: (ErgoTransaction | null)[],
+	loanId: string,
+	tokenDecimals: number = 2,
+	tokenTicker: string = 'SigUSD'
+): CrowdfundContributor[] {
+	const contributors: CrowdfundContributor[] = [];
+
+	for (const tx of crowdfundHistoryTxs) {
+		if (!tx) continue;
+
+		const label = exleHighLevelRecogniser(tx);
+		if (label !== 'Fund Crowdfund | Tokens') continue;
+
+		const inCrowdFundBox = tx.inputs.find(isCrowdFundBox);
+		const outCrowdFundBox = tx.outputs.find(isCrowdFundBox);
+
+		if (!outCrowdFundBox) continue;
+
+		// Check if this transaction is for the specified loan
+		const txLoanId = decodeCrowdfundLoanId(outCrowdFundBox);
+		if (txLoanId !== loanId) continue;
+
+		// Calculate contribution amount
+		const inAmount = getExleCrowdFundTokensAmount(inCrowdFundBox) ?? 0n;
+		const outAmount = getExleCrowdFundTokensAmount(outCrowdFundBox) ?? 0n;
+		const contributionAmount = outAmount - inAmount;
+
+		if (contributionAmount <= 0n) continue;
+
+		// Find contributor address - it's in the non-crowdfund-box inputs
+		// The contributor's address is the one that provided the funding tokens
+		const contributorInput = tx.inputs.find((input: any) => !isCrowdFundBox(input));
+		const contributorAddress = contributorInput?.address || 'Unknown';
+
+		// Format amount with decimals
+		const formattedAmount = Number(Number(contributionAmount) / 10 ** tokenDecimals).toFixed(2);
+
+		contributors.push({
+			address: contributorAddress,
+			amount: `${formattedAmount} ${tokenTicker}`,
+			rawAmount: contributionAmount,
+			timestamp: tx.timestamp || 0,
+			txId: tx.id
+		});
+	}
+
+	// Sort by timestamp (newest first)
+	return contributors.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 function getExleProxyTokensAmount(box: NodeBox): bigint | undefined {
@@ -2159,7 +2285,19 @@ export function fundCrowdFundBoxTokensTx(
 			.setAdditionalRegisters(crowdFundBox.additionalRegisters);
 	}
 
-	const receiptBox = new OutputBuilder(BigInt(paymentBox.value) - miningFee, changeAddress);
+	// Calculate total available ERG from payment box and other utxos
+	const paymentBoxErg = BigInt(paymentBox.value);
+	const otherUtxoErg = otherUtxo.reduce((sum: bigint, box: NodeBox) => sum + BigInt(box.value), 0n);
+	const totalAvailableErg = paymentBoxErg + otherUtxoErg;
+
+	// Minimum box value for a box with tokens (needs ~0.002-0.004 ERG)
+	const MIN_BOX_VALUE = 2_000_000n; // 0.002 ERG for boxes with tokens
+
+	// Receipt box gets a fair share of the available ERG minus fees
+	const receiptBoxValue = totalAvailableErg > miningFee + MIN_BOX_VALUE
+		? MIN_BOX_VALUE + miningFee // Give it enough to cover minimum + some buffer
+		: MIN_BOX_VALUE;
+	const receiptBox = new OutputBuilder(receiptBoxValue, changeAddress);
 
 	// unUsed loanTokenAmount
 	if (BigInt(paymentBoxLoanTokenAmount) > usedAmount) {
@@ -2184,26 +2322,17 @@ export function fundCrowdFundBoxTokensTx(
 	console.log('7bd13a421902c1202c2f78617e2065429cd2d2f65cce2749122fbe145312e30d?');
 
 	console.log('crowdFundBox', { crowdFundBox });
-	//console.log('paymentBox', paymentBox.);
+	console.log('paymentBox value:', paymentBox.value);
+	console.log('otherUtxo count:', otherUtxo.length);
+	console.log('otherUtxo total ERG:', otherUtxo.reduce((sum: bigint, box: NodeBox) => sum + BigInt(box.value), 0n));
 
-	let unsignedTx = new TransactionBuilder(height)
-		.from([crowdFundBox, paymentBox], {
-			ensureInclusion: true
-		})
-		.from([...otherUtxo])
-		.withDataFrom([crowdStateBox, serviceBox, lendBox])
-		.to([outCrowdFundBox, receiptBox])
-		.payFee(miningFee)
-		.sendChangeTo(changeAddress)
-		.build()
-		.toEIP12Object();
+	// Combine all inputs - crowdFundBox and paymentBox are required, otherUtxo provides additional ERG
+	const allInputs = [crowdFundBox, paymentBox, ...otherUtxo];
 
+	let unsignedTx;
 	if (burnTokens) {
 		unsignedTx = new TransactionBuilder(height)
-			.from([crowdFundBox, paymentBox], {
-				ensureInclusion: true
-			})
-			.from([...otherUtxo])
+			.from(allInputs, { ensureInclusion: true })
 			.withDataFrom([crowdStateBox, serviceBox, lendBox])
 			.to([outCrowdFundBox, receiptBox])
 			.burnTokens(burnTokens)
@@ -2213,10 +2342,7 @@ export function fundCrowdFundBoxTokensTx(
 			.toEIP12Object();
 	} else {
 		unsignedTx = new TransactionBuilder(height)
-			.from([crowdFundBox, paymentBox], {
-				ensureInclusion: true
-			})
-			.from([...otherUtxo])
+			.from(allInputs, { ensureInclusion: true })
 			.withDataFrom([crowdStateBox, serviceBox, lendBox])
 			.to([outCrowdFundBox, receiptBox])
 			.payFee(miningFee)

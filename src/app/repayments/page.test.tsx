@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import RepaymentsPage from './page'
 
@@ -11,23 +11,80 @@ vi.mock('@/components/loan/loans-grid', () => ({
   ),
 }))
 
-// Mock dummy loans
-vi.mock('@/data/dummy-loans', () => ({
-  dummyLoans: [
-    { loanId: '1', phase: 'loan' },
-    { loanId: '2', phase: 'repayment' },
-    { loanId: '3', phase: 'repayment' },
-  ],
+// Mock the useLoansData hook
+vi.mock('@/hooks/useLoansData', () => ({
+  useLoansData: vi.fn(),
 }))
 
+import { useLoansData } from '@/hooks/useLoansData'
+
 describe('RepaymentsPage', () => {
-  it('should render LoansGrid component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show loading state', () => {
+    vi.mocked(useLoansData).mockReturnValue({
+      loans: [],
+      repayments: [],
+      allLoans: [],
+      isLoading: true,
+      error: null,
+      reload: vi.fn(),
+    })
+
+    render(<RepaymentsPage />)
+
+    expect(screen.getByText(/loading repayments from blockchain/i)).toBeInTheDocument()
+  })
+
+  it('should show error state', () => {
+    vi.mocked(useLoansData).mockReturnValue({
+      loans: [],
+      repayments: [],
+      allLoans: [],
+      isLoading: false,
+      error: 'Network error',
+      reload: vi.fn(),
+    })
+
+    render(<RepaymentsPage />)
+
+    expect(screen.getByText(/failed to load repayments.*network error/i)).toBeInTheDocument()
+  })
+
+  it('should render LoansGrid component when data loads', () => {
+    vi.mocked(useLoansData).mockReturnValue({
+      loans: [],
+      repayments: [
+        { loanId: '1', phase: 'repayment' },
+        { loanId: '2', phase: 'repayment' },
+      ],
+      allLoans: [],
+      isLoading: false,
+      error: null,
+      reload: vi.fn(),
+    })
+
     render(<RepaymentsPage />)
 
     expect(screen.getByTestId('loans-grid')).toBeInTheDocument()
   })
 
-  it('should pass loans data to LoansGrid', () => {
+  it('should pass repayments data to LoansGrid', () => {
+    vi.mocked(useLoansData).mockReturnValue({
+      loans: [],
+      repayments: [
+        { loanId: '1', phase: 'repayment' },
+        { loanId: '2', phase: 'repayment' },
+        { loanId: '3', phase: 'repayment' },
+      ],
+      allLoans: [],
+      isLoading: false,
+      error: null,
+      reload: vi.fn(),
+    })
+
     render(<RepaymentsPage />)
 
     const grid = screen.getByTestId('loans-grid')
@@ -35,6 +92,15 @@ describe('RepaymentsPage', () => {
   })
 
   it('should pass phase="repayment" to LoansGrid', () => {
+    vi.mocked(useLoansData).mockReturnValue({
+      loans: [],
+      repayments: [],
+      allLoans: [],
+      isLoading: false,
+      error: null,
+      reload: vi.fn(),
+    })
+
     render(<RepaymentsPage />)
 
     const grid = screen.getByTestId('loans-grid')

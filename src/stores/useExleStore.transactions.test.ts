@@ -121,37 +121,29 @@ describe('useExleStore - Transaction Actions', () => {
       expect(mockWallet.submit_tx).toHaveBeenCalled()
     })
 
-    it('should return null and set error when service box not found', async () => {
+    it('should throw error when service box not found', async () => {
       vi.mocked(fetchServiceBox).mockResolvedValue(undefined)
 
       const { createSolofundLoan } = useExleStore.getState()
-      const result = await createSolofundLoan(mockCreateLendInputParams)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to create loan')
+      await expect(createSolofundLoan(mockCreateLendInputParams)).rejects.toThrow('Service box not found')
     })
 
-    it('should return null when wallet not connected', async () => {
+    it('should throw error when wallet not connected', async () => {
       cleanupWindowMocks()
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
       vi.mocked(createLendTokensTx).mockReturnValue({ inputs: [], outputs: [] })
 
       const { createSolofundLoan } = useExleStore.getState()
-      const result = await createSolofundLoan(mockCreateLendInputParams)
-
-      expect(result).toBeNull()
+      await expect(createSolofundLoan(mockCreateLendInputParams)).rejects.toThrow('Wallet not available')
     })
 
-    it('should return null when signing fails', async () => {
+    it('should throw error when signing fails', async () => {
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
       vi.mocked(createLendTokensTx).mockReturnValue({ inputs: [], outputs: [] })
       mockWallet.sign_tx.mockRejectedValue(new Error('User rejected'))
 
       const { createSolofundLoan } = useExleStore.getState()
-      const result = await createSolofundLoan(mockCreateLendInputParams)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to create loan')
+      await expect(createSolofundLoan(mockCreateLendInputParams)).rejects.toThrow('User rejected')
     })
   })
 
@@ -170,25 +162,20 @@ describe('useExleStore - Transaction Actions', () => {
       expect(preparefundLendTokensTx).toHaveBeenCalled()
     })
 
-    it('should return null when lend box not found', async () => {
+    it('should throw error when lend box not found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(undefined)
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
 
       const { fundLoanSolo } = useExleStore.getState()
-      const result = await fundLoanSolo(MOCK_LOAN_ID)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to fund loan')
+      await expect(fundLoanSolo(MOCK_LOAN_ID)).rejects.toThrow('Required boxes not found')
     })
 
-    it('should return null when service box not found', async () => {
+    it('should throw error when service box not found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(mockLendBoxUnfunded)
       vi.mocked(fetchServiceBox).mockResolvedValue(undefined)
 
       const { fundLoanSolo } = useExleStore.getState()
-      const result = await fundLoanSolo(MOCK_LOAN_ID)
-
-      expect(result).toBeNull()
+      await expect(fundLoanSolo(MOCK_LOAN_ID)).rejects.toThrow('Required boxes not found')
     })
   })
 
@@ -219,15 +206,12 @@ describe('useExleStore - Transaction Actions', () => {
       expect(fundRepaymentTokensSruProxyTx).toHaveBeenCalled()
     })
 
-    it('should return null when repayment box not found', async () => {
+    it('should throw error when repayment box not found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(undefined)
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
 
       const { repayLoan } = useExleStore.getState()
-      const result = await repayLoan(MOCK_LOAN_ID, 5000n, true)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to repay loan')
+      await expect(repayLoan(MOCK_LOAN_ID, 5000n, true)).rejects.toThrow('Required boxes not found')
     })
   })
 
@@ -245,15 +229,12 @@ describe('useExleStore - Transaction Actions', () => {
       expect(prepareLendToRepaymentTokensTx).toHaveBeenCalled()
     })
 
-    it('should return null when lend box not found', async () => {
+    it('should throw error when lend box not found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(undefined)
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
 
       const { withdrawLoanAsBorrower } = useExleStore.getState()
-      const result = await withdrawLoanAsBorrower(MOCK_LOAN_ID)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to withdraw loan')
+      await expect(withdrawLoanAsBorrower(MOCK_LOAN_ID)).rejects.toThrow('Required boxes not found')
     })
   })
 
@@ -274,14 +255,11 @@ describe('useExleStore - Transaction Actions', () => {
       )
     })
 
-    it('should return null when repayment box not found', async () => {
+    it('should throw error when repayment box not found', async () => {
       vi.mocked(fetchBoxByTokenId).mockResolvedValue(undefined)
 
       const { withdrawFromRepaymentAsLender } = useExleStore.getState()
-      const result = await withdrawFromRepaymentAsLender(MOCK_LOAN_ID)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to withdraw from repayment')
+      await expect(withdrawFromRepaymentAsLender(MOCK_LOAN_ID)).rejects.toThrow('Repayment box not found')
     })
   })
 
@@ -329,14 +307,11 @@ describe('useExleStore - Transaction Actions', () => {
       expect(result).toBe('lendTxId123')
     })
 
-    it('should return null when service box not found', async () => {
+    it('should throw error when service box not found', async () => {
       vi.mocked(fetchServiceBox).mockResolvedValue(undefined)
 
       const { createCrowdfundLoan } = useExleStore.getState()
-      const result = await createCrowdfundLoan(mockCreateCrowdfundInputParams)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to create crowdfund loan')
+      await expect(createCrowdfundLoan(mockCreateCrowdfundInputParams)).rejects.toThrow('Service box not found')
     })
   })
 
@@ -356,19 +331,16 @@ describe('useExleStore - Transaction Actions', () => {
       expect(fundCrowdFundBoxTokensTx).toHaveBeenCalled()
     })
 
-    it('should return null when no crowdfund boxes found', async () => {
+    it('should throw error when no crowdfund boxes found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(mockLendBoxUnfunded)
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
       vi.mocked(fetchCrowdFundBoxesByLoanId).mockResolvedValue([])
 
       const { fundCrowdfund } = useExleStore.getState()
-      const result = await fundCrowdfund(MOCK_LOAN_ID, 5000n)
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to fund crowdfund')
+      await expect(fundCrowdfund(MOCK_LOAN_ID, 5000n)).rejects.toThrow('Required boxes not found')
     })
 
-    it('should return null when no suitable payment box found', async () => {
+    it('should throw error when no suitable payment box found', async () => {
       vi.mocked(fetchLendBox).mockResolvedValue(mockLendBoxUnfunded)
       vi.mocked(fetchServiceBox).mockResolvedValue(mockServiceBox)
       vi.mocked(fetchCrowdFundBoxesByLoanId).mockResolvedValue([mockCrowdfundBox])
@@ -376,9 +348,7 @@ describe('useExleStore - Transaction Actions', () => {
       mockWallet.get_utxos.mockResolvedValue([{ boxId: 'empty', assets: [] }])
 
       const { fundCrowdfund } = useExleStore.getState()
-      const result = await fundCrowdfund(MOCK_LOAN_ID, 999999999n) // Very large amount
-
-      expect(result).toBeNull()
+      await expect(fundCrowdfund(MOCK_LOAN_ID, 999999999n)).rejects.toThrow('No box with sufficient tokens found')
     })
   })
 
@@ -395,14 +365,11 @@ describe('useExleStore - Transaction Actions', () => {
       expect(sendFromCrowdBoxToLenderTokensTx).toHaveBeenCalled()
     })
 
-    it('should return null when crowdfund box not found', async () => {
+    it('should throw error when crowdfund box not found', async () => {
       vi.mocked(fetchBoxByTokenId).mockResolvedValue(undefined)
 
       const { withdrawFromCrowdfundAsLender } = useExleStore.getState()
-      const result = await withdrawFromCrowdfundAsLender('nonexistent')
-
-      expect(result).toBeNull()
-      expect(useExleStore.getState().error).toBe('Failed to withdraw from crowdfund')
+      await expect(withdrawFromCrowdfundAsLender('nonexistent')).rejects.toThrow('Crowdfund box not found')
     })
   })
 })

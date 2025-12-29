@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Clock, Percent, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Clock, Percent, CheckCircle, Loader2, Users, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { shortenAddress, cn } from '@/lib/utils'
 import { useExleStore } from '@/stores/useExleStore'
 import { tokenByTicker } from '@/lib/exle/exle'
+import { useCrowdfundContributors } from '@/hooks/useCrowdfundContributors'
 import type { Loan } from '@/types/loan'
 
 interface LoanDetailsProps {
@@ -30,6 +31,15 @@ export function LoanDetails({ loan }: LoanDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successTxId, setSuccessTxId] = useState<string | null>(null)
+
+  // Fetch contributors for crowdfund loans
+  const token = tokenByTicker(loan.fundingToken)
+  const { contributors, isLoading: isLoadingContributors } = useCrowdfundContributors({
+    loanId: loan.loanId,
+    loanType: loan.loanType,
+    tokenDecimals: token?.decimals ?? 2,
+    tokenTicker: loan.fundingToken
+  })
 
   const isInactive = loan.daysLeft === 0 || loan.isRepayed
   const isLoan = loan.phase === 'loan'
@@ -221,6 +231,58 @@ export function LoanDetails({ loan }: LoanDetailsProps) {
               <span className="text-xs text-muted-foreground">Interest Rate</span>
             </li>
           </ul>
+
+          {/* Contributors Section - Only for Crowdloans */}
+          {isCrowdloan && (
+            <div className="mt-8 border-t border-muted pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <span className="text-lg font-medium">
+                  Contributors {contributors.length > 0 && `(${contributors.length})`}
+                </span>
+              </div>
+
+              {isLoadingContributors ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading contributors...</span>
+                </div>
+              ) : contributors.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No contributions yet. Be the first to fund this loan!
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  {contributors.map((contributor, index) => (
+                    <div
+                      key={`${contributor.txId}-${index}`}
+                      className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{shortenAddress(contributor.address)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(contributor.timestamp).toLocaleDateString()} at{' '}
+                          {new Date(contributor.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-green-500">{contributor.amount}</span>
+                        <a
+                          href={`https://explorer.ergoplatform.com/transactions/${contributor.txId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="View transaction on explorer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column - Actions */}

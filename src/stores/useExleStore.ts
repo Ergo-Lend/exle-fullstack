@@ -70,6 +70,13 @@ interface TokenBalance {
   decimals: number
 }
 
+export interface PendingTx {
+  txId: string
+  type: 'fund' | 'withdraw' | 'repay' | 'create'
+  loanId: string
+  timestamp: number
+}
+
 interface ExleStore {
   // UI State
   isMobile: boolean
@@ -87,6 +94,9 @@ interface ExleStore {
   exleMetadata: AllExleMetadata | null
   isLoading: boolean
   error: string | null
+
+  // Pending Transaction State
+  pendingTransactions: PendingTx[]
 
   // UI Actions
   setIsMobile: (value: boolean) => void
@@ -116,6 +126,11 @@ interface ExleStore {
   fundCrowdfund: (loanId: string, amount: bigint) => Promise<string | null>
   withdrawFromCrowdfundAsLender: (crowdfundBoxId: string) => Promise<string | null>
 
+  // Pending Transaction Actions
+  addPendingTransaction: (tx: PendingTx) => void
+  removePendingTransaction: (txId: string) => void
+  getPendingTransactionForLoan: (loanId: string) => PendingTx | undefined
+
   // Computed (selectors)
   getMyDonations: () => Donation[]
   getMyTransactions: () => HistoryItem[]
@@ -143,6 +158,9 @@ export const useExleStore = create<ExleStore>()(
       exleMetadata: null,
       isLoading: false,
       error: null,
+
+      // Initial Pending Transaction State
+      pendingTransactions: [],
 
       // UI Actions
       setIsMobile: (value) => set({ isMobile: value }),
@@ -312,8 +330,17 @@ export const useExleStore = create<ExleStore>()(
 
           if (!window.ergo) throw new Error('Wallet not connected')
 
-          const signedTx = await window.ergo.sign_tx(unsignedTx)
+          const signedTx = await window.ergo.sign_tx(unsignedTx) as { outputs?: Array<{ assets?: Array<{ tokenId: string }> }> }
           const txId = await window.ergo.submit_tx(signedTx)
+
+          // Extract loan token ID from the transaction output
+          const loanTokenId = signedTx.outputs?.[1]?.assets?.[1]?.tokenId || txId
+          get().addPendingTransaction({
+            txId,
+            type: 'create',
+            loanId: loanTokenId,
+            timestamp: Date.now(),
+          })
 
           return txId
         } catch (error) {
@@ -349,6 +376,13 @@ export const useExleStore = create<ExleStore>()(
 
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
+
+          get().addPendingTransaction({
+            txId,
+            type: 'fund',
+            loanId,
+            timestamp: Date.now(),
+          })
 
           return txId
         } catch (error) {
@@ -391,6 +425,13 @@ export const useExleStore = create<ExleStore>()(
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
 
+          get().addPendingTransaction({
+            txId,
+            type: 'repay',
+            loanId,
+            timestamp: Date.now(),
+          })
+
           return txId
         } catch (error) {
           console.error('Repay loan error:', error)
@@ -432,6 +473,13 @@ export const useExleStore = create<ExleStore>()(
               const signedMergeTx = await window.ergo.sign_tx(mergeTx)
               const mergeTxId = await window.ergo.submit_tx(signedMergeTx)
 
+              get().addPendingTransaction({
+                txId: mergeTxId,
+                type: 'withdraw',
+                loanId,
+                timestamp: Date.now(),
+              })
+
               // Return the merge tx ID - user needs to wait and click withdraw again
               // to complete the lend->repayment transition
               return mergeTxId
@@ -450,6 +498,13 @@ export const useExleStore = create<ExleStore>()(
 
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
+
+          get().addPendingTransaction({
+            txId,
+            type: 'withdraw',
+            loanId,
+            timestamp: Date.now(),
+          })
 
           return txId
         } catch (error) {
@@ -477,6 +532,13 @@ export const useExleStore = create<ExleStore>()(
 
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
+
+          get().addPendingTransaction({
+            txId,
+            type: 'withdraw',
+            loanId,
+            timestamp: Date.now(),
+          })
 
           return txId
         } catch (error) {
@@ -536,6 +598,13 @@ export const useExleStore = create<ExleStore>()(
           const signedCrowdTx = await window.ergo.sign_tx(unsignedCrowdTx)
           const crowdTxId = await window.ergo.submit_tx(signedCrowdTx)
 
+          get().addPendingTransaction({
+            txId: crowdTxId,
+            type: 'create',
+            loanId: loanTokenId,
+            timestamp: Date.now(),
+          })
+
           return crowdTxId
         } catch (error) {
           console.error('Create crowdfund loan error:', error)
@@ -585,6 +654,13 @@ export const useExleStore = create<ExleStore>()(
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
 
+          get().addPendingTransaction({
+            txId,
+            type: 'fund',
+            loanId,
+            timestamp: Date.now(),
+          })
+
           return txId
         } catch (error) {
           console.error('Fund crowdfund error:', error)
@@ -613,11 +689,39 @@ export const useExleStore = create<ExleStore>()(
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)
 
+          get().addPendingTransaction({
+            txId,
+            type: 'withdraw',
+            loanId: crowdfundBoxId,
+            timestamp: Date.now(),
+          })
+
           return txId
         } catch (error) {
           console.error('Withdraw from crowdfund error:', error)
           throw error
         }
+      },
+
+      // Pending Transaction Actions
+      addPendingTransaction: (tx) => {
+        set((state) => ({
+          pendingTransactions: [
+            ...state.pendingTransactions.filter((p) => p.txId !== tx.txId),
+            tx,
+          ],
+        }))
+      },
+
+      removePendingTransaction: (txId) => {
+        set((state) => ({
+          pendingTransactions: state.pendingTransactions.filter((p) => p.txId !== txId),
+        }))
+      },
+
+      getPendingTransactionForLoan: (loanId) => {
+        const { pendingTransactions } = get()
+        return pendingTransactions.find((p) => p.loanId === loanId)
       },
 
       // Computed Selectors
@@ -650,6 +754,7 @@ export const useExleStore = create<ExleStore>()(
         isDark: state.isDark,
         connectedWallet: state.connectedWallet,
         changeAddress: state.changeAddress,
+        pendingTransactions: state.pendingTransactions,
       }),
     }
   )
@@ -668,4 +773,10 @@ export const useTheme = () => useExleStore((state) => ({
   isDark: state.isDark,
   toggle: state.toggleTheme,
   init: state.initTheme,
+}))
+export const usePendingTransactions = () => useExleStore((state) => ({
+  pendingTransactions: state.pendingTransactions,
+  addPendingTransaction: state.addPendingTransaction,
+  removePendingTransaction: state.removePendingTransaction,
+  getPendingTransactionForLoan: state.getPendingTransactionForLoan,
 }))

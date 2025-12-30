@@ -396,6 +396,53 @@ async function fetchTransactionById(txId: string): Promise<ErgoTransaction | nul
 	}
 }
 
+export type TransactionStatus = 'pending' | 'confirmed' | 'not_found';
+
+/**
+ * Check the status of a transaction by its ID
+ * @param txId - Transaction ID to check
+ * @returns 'pending' if in mempool, 'confirmed' if on-chain, 'not_found' if neither
+ */
+export async function checkTransactionStatus(txId: string): Promise<TransactionStatus> {
+	// First check if transaction is in mempool (pending/unconfirmed)
+	try {
+		const mempoolUrl = `${NODE_BASE_URL}/transactions/unconfirmed/byTransactionId/${txId}`;
+		const mempoolResponse = await fetch(mempoolUrl, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			}
+		});
+
+		if (mempoolResponse.ok) {
+			return 'pending';
+		}
+	} catch {
+		// Ignore mempool check errors, continue to check confirmed
+	}
+
+	// Check if transaction is confirmed on-chain
+	try {
+		const confirmedUrl = `${NODE_BASE_URL}/blockchain/transaction/byId/${txId}`;
+		const confirmedResponse = await fetch(confirmedUrl, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			}
+		});
+
+		if (confirmedResponse.ok) {
+			return 'confirmed';
+		}
+	} catch {
+		// Transaction not found
+	}
+
+	return 'not_found';
+}
+
 async function fetchTransactionsByAddress(
 	address: string,
 	offset: number = 0,

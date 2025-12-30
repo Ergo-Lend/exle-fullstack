@@ -51,6 +51,7 @@ describe('LoanDetails', () => {
   const mockWithdrawFromRepaymentAsLender = vi.fn()
   const mockWithdrawFromCrowdfundAsLender = vi.fn()
   const mockLoadLoansAndRepayments = vi.fn()
+  const mockGetPendingTransactionForLoan = vi.fn(() => undefined)
 
   beforeEach(() => {
     vi.mocked(useExleStore).mockImplementation((selector) => {
@@ -63,6 +64,9 @@ describe('LoanDetails', () => {
         withdrawFromRepaymentAsLender: mockWithdrawFromRepaymentAsLender,
         withdrawFromCrowdfundAsLender: mockWithdrawFromCrowdfundAsLender,
         loadLoansAndRepayments: mockLoadLoansAndRepayments,
+        pendingTransactions: [],
+        getPendingTransactionForLoan: mockGetPendingTransactionForLoan,
+        removePendingTransaction: vi.fn(),
       }
       return selector(state as any)
     })
@@ -241,6 +245,9 @@ describe('LoanDetails', () => {
           withdrawFromRepaymentAsLender: mockWithdrawFromRepaymentAsLender,
           withdrawFromCrowdfundAsLender: mockWithdrawFromCrowdfundAsLender,
           loadLoansAndRepayments: mockLoadLoansAndRepayments,
+          pendingTransactions: [],
+          getPendingTransactionForLoan: mockGetPendingTransactionForLoan,
+          removePendingTransaction: vi.fn(),
         }
         return selector(state as any)
       })
@@ -443,6 +450,9 @@ describe('LoanDetails - Authorization', () => {
         withdrawFromRepaymentAsLender: vi.fn(),
         withdrawFromCrowdfundAsLender: vi.fn(),
         loadLoansAndRepayments: vi.fn(),
+        pendingTransactions: [],
+        getPendingTransactionForLoan: vi.fn(() => undefined),
+        removePendingTransaction: vi.fn(),
       }
       return selector(state as any)
     })

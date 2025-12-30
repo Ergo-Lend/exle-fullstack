@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Clock, Percent, CheckCircle, Loader2, Users, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Clock, Percent, CheckCircle, Loader2, Users, ExternalLink, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { shortenAddress, cn } from '@/lib/utils'
 import { useExleStore } from '@/stores/useExleStore'
 import { tokenByTicker } from '@/lib/exle/exle'
 import { useCrowdfundContributors } from '@/hooks/useCrowdfundContributors'
+import { usePendingTransactionPolling } from '@/hooks/usePendingTransactionPolling'
 import type { Loan } from '@/types/loan'
 
 interface LoanDetailsProps {
@@ -31,6 +32,11 @@ export function LoanDetails({ loan }: LoanDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successTxId, setSuccessTxId] = useState<string | null>(null)
+
+  // Track pending transactions
+  const getPendingTransactionForLoan = useExleStore((state) => state.getPendingTransactionForLoan)
+  const { pendingTransactions } = usePendingTransactionPolling()
+  const pendingTx = getPendingTransactionForLoan(loan.loanId)
 
   // Fetch contributors for crowdfund loans
   const token = tokenByTicker(loan.fundingToken)
@@ -321,7 +327,27 @@ export function LoanDetails({ loan }: LoanDetailsProps) {
 
           {!loan.isRepayed && !isRepaymentOverdue && (
             <>
-              {successTxId && (
+              {pendingTx && (
+                <div className="mb-6 mt-6 rounded-lg border border-amber-500 bg-amber-500/10 p-4">
+                  <div className="flex items-center gap-2 text-amber-500">
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    <span className="font-medium">Transaction pending...</span>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Your {pendingTx.type} transaction is being processed.
+                  </p>
+                  <a
+                    href={`https://explorer.ergoplatform.com/transactions/${pendingTx.txId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-sm text-amber-500 hover:underline"
+                  >
+                    View on explorer <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              {successTxId && !pendingTx && (
                 <div className="mb-6 mt-6 rounded-lg border border-green-500 bg-green-500/10 p-4">
                   <div className="flex items-center gap-2 text-green-500">
                     <CheckCircle className="h-5 w-5" />

@@ -1,0 +1,23 @@
+<svg width="324" height="324" viewBox="0 0 324 324" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="324" height="324" rx="16" fill="#1A1B26"/>
+
+  <!-- Organic wavy layers - outermost to innermost -->
+  <path d="M162 280 C100 270, 60 230, 50 162 C60 94, 100 54, 162 44 C224 54, 264 94, 274 162 C264 230, 224 270, 162 280 C140 275, 90 250, 70 200 C60 160, 70 110, 100 80 C140 50, 190 50, 224 80 C254 110, 264 160, 254 200 C234 250, 184 275, 162 280" stroke="#3D3F6B" stroke-width="2" fill="none" opacity="0.4"/>
+
+  <path d="M162 260 C110 252, 75 218, 67 162 C75 106, 110 72, 162 64 C214 72, 249 106, 257 162 C249 218, 214 252, 162 260" stroke="#4448A0" stroke-width="2" fill="none" opacity="0.5"/>
+
+  <path d="M162 240 C118 233, 88 205, 82 162 C88 119, 118 91, 162 84 C206 91, 236 119, 242 162 C236 205, 206 233, 162 240" stroke="#4E54C8" stroke-width="2" fill="none" opacity="0.6"/>
+
+  <path d="M162 220 C126 214, 100 192, 95 162 C100 132, 126 110, 162 104 C198 110, 224 132, 229 162 C224 192, 198 214, 162 220" stroke="#5A60D8" stroke-width="2" fill="none" opacity="0.7"/>
+
+  <path d="M162 200 C134 195, 112 178, 108 162 C112 146, 134 129, 162 124 C190 129, 212 146, 216 162 C212 178, 190 195, 162 200" stroke="#6368E8" stroke-width="2" fill="none" opacity="0.8"/>
+
+  <!-- Hexagon with Sigma -->
+  <g transform="translate(162, 162)">
+    <!-- Hexagon background -->
+    <polygon points="0,-50 43,-25 43,25 0,50 -43,25 -43,-25" fill="#1A1B26" stroke="#6B70E0" stroke-width="2"/>
+
+    <!-- Sigma symbol (Σ) -->
+    <path d="M-18 -25 L18 -25 L18 -18 L-6 -18 L10 0 L-6 18 L18 18 L18 25 L-18 25 L-18 18 L0 0 L-18 -18 Z" fill="#8B8FE8"/>
+  </g>
+</svg>

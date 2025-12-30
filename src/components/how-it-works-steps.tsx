@@ -1,26 +1,28 @@
 'use client'
 
+import { FileText, Clock, Wallet } from 'lucide-react'
+
 const steps = [
   {
     number: '1',
     title: 'Create your loan request',
     description:
       'Fill out the loan form with relevant information and pay 0.1 ERG to create your loan.',
-    gif: '/system-regular-50-file.gif',
+    Icon: FileText,
   },
   {
     number: '2',
     title: 'Wait for your loan to get crowdfunded',
     description:
       'Our community members will fund your loan request as they see fit during the funding period.',
-    gif: '/system-regular-67-clock.gif',
+    Icon: Clock,
   },
   {
     number: '3',
     title: 'Withdraw your funded loan',
     description:
       'After your loan is fully funded, you can withdraw your funds and your repayment period begins.',
-    gif: '/system-regular-5-wallet.gif',
+    Icon: Wallet,
   },
 ]
 
@@ -38,8 +40,7 @@ export function HowItWorksSteps() {
             }`}
           >
             <div className="flex items-center gap-4" style={{ marginLeft: '-3px' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={step.gif} alt="" className="w-8 dark:invert" />
+              <step.Icon className="h-8 w-8 text-foreground" />
             </div>
             <h4 className="text-xl font-bold md:max-w-[190px] md:text-lg">
               {step.title}

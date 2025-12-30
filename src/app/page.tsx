@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { HowItWorksSteps } from '@/components/how-it-works-steps'
 import { ErgoManifesto, ErgoManifestoMobile } from '@/components/ergo-manifesto'
+import { FeaturesSection } from '@/components/features-section'
+import { CommunitySection } from '@/components/community-section'
+import { PartnersSection } from '@/components/partners-section'
+import { RoadmapSection } from '@/components/roadmap-section'
 
 export default function Home() {
   return (
@@ -12,7 +16,7 @@ export default function Home() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           className="absolute mt-4 w-[85%] max-w-[350px] md:hidden"
-          src="/globe.png"
+          src="/globe.svg"
           alt=""
         />
         <div className="h-[180px] md:h-[50px]" />
@@ -35,7 +39,7 @@ export default function Home() {
 
         <div className="relative" style={{ maxWidth: 522 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="mt-4 hidden md:block" src="/globe.png" alt="" />
+          <img className="mt-4 hidden md:block" src="/globe.svg" alt="" />
           <div className="block h-[100px] md:hidden" />
           <h2 className="absolute bottom-0 left-1/2 -translate-x-1/2 transform whitespace-nowrap text-3xl md:text-4xl font-semibold">
             How does it work?
@@ -53,8 +57,14 @@ export default function Home() {
         <div className="block md:hidden w-full">
           <ErgoManifestoMobile />
         </div>
-        <div className="my-20" />
       </section>
+
+      <FeaturesSection />
+      <CommunitySection />
+      <PartnersSection />
+      <RoadmapSection />
+
+      <div className="my-20" />
     </div>
   )
 }

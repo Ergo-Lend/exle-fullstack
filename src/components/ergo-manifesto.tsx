@@ -1,27 +1,7 @@
 'use client'
 
 import { useTheme } from 'next-themes'
-
-function ErgoRippleEffect({ isDark }: { isDark: boolean }) {
-  const fillColor = isDark ? '#292837' : '#F5F6FB'
-  const strokeColor = isDark ? '#4E54E6' : '#4E54E6'
-
-  return (
-    <svg
-      width="324"
-      height="324"
-      viewBox="0 0 324 324"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="324" height="324" rx="16" fill={fillColor} />
-      <circle cx="162" cy="162" r="60" stroke={strokeColor} strokeWidth="2" opacity="0.3" />
-      <circle cx="162" cy="162" r="90" stroke={strokeColor} strokeWidth="2" opacity="0.2" />
-      <circle cx="162" cy="162" r="120" stroke={strokeColor} strokeWidth="2" opacity="0.1" />
-      <circle cx="162" cy="162" r="30" fill={strokeColor} />
-    </svg>
-  )
-}
+import Image from 'next/image'
 
 export function ErgoManifesto() {
   const { theme } = useTheme()
@@ -29,8 +9,14 @@ export function ErgoManifesto() {
 
   return (
     <div className="flex w-full items-start gap-8 overflow-hidden rounded-2xl border border-border text-left">
-      <div style={{ width: 324, height: 324 }}>
-        <ErgoRippleEffect isDark={isDark} />
+      <div className="flex-shrink-0" style={{ width: 324, height: 324 }}>
+        <Image
+          src="/ergo-logo.svg"
+          alt="Ergo"
+          width={324}
+          height={324}
+          className="rounded-l-2xl"
+        />
       </div>
       <div className="relative flex h-[324px] flex-col justify-center">
         <div className="relative z-10">
@@ -88,13 +74,15 @@ export function ErgoManifesto() {
 }
 
 export function ErgoManifestoMobile() {
-  const { theme } = useTheme()
-  const isDark = theme === 'dark'
-
   return (
     <div className="flex w-full flex-col items-center rounded-2xl border border-border p-6 text-center">
-      <div className="mb-4" style={{ width: 200, height: 200 }}>
-        <ErgoRippleEffect isDark={isDark} />
+      <div className="mb-4 overflow-hidden rounded-xl" style={{ width: 200, height: 200 }}>
+        <Image
+          src="/ergo-logo.svg"
+          alt="Ergo"
+          width={200}
+          height={200}
+        />
       </div>
       <h3 className="mb-4 text-2xl font-bold uppercase">the ergo manifesto</h3>
       <div className="flex gap-2">

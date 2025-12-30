@@ -133,8 +133,8 @@ export function LoanDetails({ loan }: LoanDetailsProps) {
 
       if (txId) {
         setSuccessTxId(txId)
-        // Refresh loan data
-        await loadLoansAndRepayments()
+        // Refresh loan data in background (don't await - let success message display immediately)
+        loadLoansAndRepayments()
       } else {
         throw new Error('Transaction failed - no transaction ID returned')
       }

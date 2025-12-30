@@ -2252,15 +2252,18 @@ export function fundCrowdFundBoxTokensTx(
 	}
 	//
 	let burnTokens = undefined;
-	console.log(BigInt(crowdFundBox.assets[1].amount), amount);
+
 	if (BigInt(fundingGoal) <= amount + fundedAmount) {
 		usedAmount = fundingGoal - fundedAmount;
 
-		//vsego assets[1].amount - usedAmount
-		(burnTokens = {
-			tokenId: crowdFundBox.assets[1].tokenId,
-			amount: BigInt(crowdFundBox.assets[1].amount) - 1n - usedAmount
-		}),
+		// Calculate burn amount with bounds check to prevent underflow
+		const burnAmount = BigInt(crowdFundBox.assets[1].amount) - 1n - usedAmount;
+		if (burnAmount > 0n) {
+			burnTokens = {
+				tokenId: crowdFundBox.assets[1].tokenId,
+				amount: burnAmount
+			};
+		}
 			outCrowdFundBox
 				.addTokens([
 					crowdFundBox.assets[0],
@@ -2273,12 +2276,16 @@ export function fundCrowdFundBoxTokensTx(
 					R6: SLong(1n).toHex()
 				});
 	} else {
+		// Calculate remaining receipt tokens with bounds check to prevent underflow
+		const currentReceiptTokens = BigInt(crowdFundBox.assets[1].amount);
+		const remainingReceiptTokens = currentReceiptTokens > amount ? currentReceiptTokens - amount : 1n;
+
 		outCrowdFundBox
 			.addTokens([
 				crowdFundBox.assets[0],
 				{
 					tokenId: crowdFundBox.assets[1].tokenId,
-					amount: BigInt(crowdFundBox.assets[1].amount) - amount
+					amount: remainingReceiptTokens
 				},
 				{ tokenId: loanTokenId, amount: fundedAmount + amount }
 			])

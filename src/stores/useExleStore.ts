@@ -408,7 +408,38 @@ export const useExleStore = create<ExleStore>()(
             throw new Error('Required boxes not found')
           }
 
-          // This transitions the loan to repayment phase and sends funds to borrower
+          if (!window.ergo) throw new Error('Wallet not connected')
+
+          // Check if this is a crowdfund loan that needs merging first
+          const crowdfundBoxes = await fetchCrowdFundBoxesByLoanId(loanId)
+          if (crowdfundBoxes && crowdfundBoxes.length > 0) {
+            const crowdfundBox = crowdfundBoxes[0]
+            // Check crowdfund state (R6): 0 = funding, 1 = fully funded, 2 = repayment
+            const stateHex = crowdfundBox.additionalRegisters?.R6
+            // Decode SLong: format is "05xx" where xx is the value * 2
+            const state = stateHex ? parseInt(stateHex.slice(2), 16) / 2 : 0
+
+            if (state === 1) {
+              // Crowdfund is fully funded but not yet merged with lend box
+              // First, merge the crowdfund box with the lend box
+              const mergeTx = fundLendWithCrowdBoxTokensTx(
+                crowdfundBox,
+                lendBox,
+                height,
+                EXLE_MINING_FEE
+              )
+
+              const signedMergeTx = await window.ergo.sign_tx(mergeTx)
+              const mergeTxId = await window.ergo.submit_tx(signedMergeTx)
+
+              // Return the merge tx ID - user needs to wait and click withdraw again
+              // to complete the lend->repayment transition
+              return mergeTxId
+            }
+          }
+
+          // For solo loans OR after crowdfund merge is complete:
+          // Transition the loan to repayment phase and send funds to borrower
           const unsignedTx = prepareLendToRepaymentTokensTx(
             height,
             serviceBox,
@@ -416,8 +447,6 @@ export const useExleStore = create<ExleStore>()(
             EXLE_MINING_FEE,
             me
           )
-
-          if (!window.ergo) throw new Error('Wallet not connected')
 
           const signedTx = await window.ergo.sign_tx(unsignedTx)
           const txId = await window.ergo.submit_tx(signedTx)

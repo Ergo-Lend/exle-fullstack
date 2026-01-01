@@ -16,6 +16,14 @@ export default function MyRepaymentsPage() {
       )
     : []
 
+  // Split into active (not repaid, has days left) and history (repaid or expired)
+  const activeRepayments = userRepayments.filter(
+    (loan) => !loan.isRepayed && loan.daysLeft > 0
+  )
+  const repaymentHistory = userRepayments.filter(
+    (loan) => loan.isRepayed || loan.daysLeft <= 0
+  )
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4 xl:px-0">
@@ -49,28 +57,64 @@ export default function MyRepaymentsPage() {
     )
   }
 
+  if (!changeAddress) {
+    return (
+      <div className="container mx-auto py-8 px-4 xl:px-0">
+        <header className="mb-8">
+          <h1 className="text-2xl font-semibold bg-gradient-to-r from-indigo-500 to-indigo-900 dark:from-indigo-500 dark:to-indigo-700 bg-clip-text text-transparent">
+            My Repayments
+          </h1>
+        </header>
+        <EmptyLoans message="Connect your wallet to view your repayments." />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 xl:px-0">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold bg-gradient-to-r from-indigo-500 to-indigo-900 dark:from-indigo-500 dark:to-indigo-700 bg-clip-text text-transparent">
-          My Repayments
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {userRepayments.length} repayments pending
-        </p>
-      </header>
+      {/* Active Repayments Section */}
+      <section className="mb-12">
+        <header className="mb-6">
+          <h2 className="text-xl font-semibold">
+            Active repayments{' '}
+            <span className="font-normal text-muted-foreground">
+              ({activeRepayments.length} repayments)
+            </span>
+          </h2>
+        </header>
 
-      {!changeAddress ? (
-        <EmptyLoans message="Connect your wallet to view your repayments." />
-      ) : userRepayments.length === 0 ? (
-        <EmptyLoans message="You don't have any active repayments." />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {userRepayments.map((loan) => (
-            <LoanWidget key={loan.loanId} loan={loan} showCreator={false} />
-          ))}
-        </div>
-      )}
+        {activeRepayments.length === 0 ? (
+          <p className="text-muted-foreground">No active repayments.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {activeRepayments.map((loan) => (
+              <LoanWidget key={loan.loanId} loan={loan} showCreator={false} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Repayment History Section */}
+      <section>
+        <header className="mb-6">
+          <h2 className="text-xl font-semibold">
+            Repayment history{' '}
+            <span className="font-normal text-muted-foreground">
+              ({repaymentHistory.length} repayments)
+            </span>
+          </h2>
+        </header>
+
+        {repaymentHistory.length === 0 ? (
+          <p className="text-muted-foreground">No repayment history yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {repaymentHistory.map((loan) => (
+              <LoanWidget key={loan.loanId} loan={loan} showCreator={false} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

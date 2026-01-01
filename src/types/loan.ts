@@ -22,5 +22,6 @@ export interface Loan {
   creator: string
   isReadyForWithdrawal?: boolean
   isRepayed?: boolean
+  repaidDate?: number // Unix timestamp of when loan was fully repaid
   contributors?: CrowdfundContributor[]
 }

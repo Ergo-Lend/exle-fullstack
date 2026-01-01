@@ -30,6 +30,15 @@ export function LoanWidget({ loan, showCreator = true }: LoanWidgetProps) {
     return 'text-indigo-600 dark:text-indigo-400'
   }
 
+  const formatRepaidDate = (timestamp: number) => {
+    const date = new Date(timestamp)
+    return date.toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
   return (
     <Link href={`/loans/${loan.loanId}`}>
       <div className="rounded-2xl border-2 border-border p-6 px-5 hover:border-primary/50 transition-colors">
@@ -83,6 +92,12 @@ export function LoanWidget({ loan, showCreator = true }: LoanWidgetProps) {
               <span className="flex items-center gap-1 text-xs font-semibold text-green-500">
                 <CheckCircle className="h-4 w-4" />
                 Ready for withdrawal
+              </span>
+            ) : loan.isRepayed ? (
+              <span className="font-normal text-muted-foreground">
+                {loan.repaidDate
+                  ? `Repaid on ${formatRepaidDate(loan.repaidDate)}`
+                  : 'Fully repaid'}
               </span>
             ) : (
               <span className="font-normal text-muted-foreground">

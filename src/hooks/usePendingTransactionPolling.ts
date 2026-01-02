@@ -1,11 +1,26 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import { useExleStore } from '@/stores/useExleStore'
+import { useExleStore, type PendingTx } from '@/stores/useExleStore'
 import type { TransactionStatus } from '@/lib/exle/exle'
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
 const MAX_AGE_MS = 60 * 60 * 1000 // 1 hour - auto-cleanup old pending txs
+
+/**
+ * Invalidate the Next.js fetch cache for the given transaction type
+ */
+async function revalidateCache(txType: PendingTx['type']): Promise<void> {
+  try {
+    await fetch('/api/revalidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ txType }),
+    })
+  } catch (error) {
+    console.error('Failed to revalidate cache:', error)
+  }
+}
 
 /**
  * Hook that polls for pending transaction status updates.
@@ -41,7 +56,7 @@ export function usePendingTransactionPolling(onConfirmed?: (txId: string, loanId
     if (pendingTransactions.length === 0) return
 
     const now = Date.now()
-    let anyConfirmed = false
+    const confirmedTypes = new Set<PendingTx['type']>()
 
     for (const tx of pendingTransactions) {
       // Auto-cleanup old transactions (older than 1 hour)
@@ -54,7 +69,7 @@ export function usePendingTransactionPolling(onConfirmed?: (txId: string, loanId
 
       if (status === 'confirmed') {
         removePendingTransaction(tx.txId)
-        anyConfirmed = true
+        confirmedTypes.add(tx.type)
         onConfirmed?.(tx.txId, tx.loanId)
       } else if (status === 'not_found') {
         // Transaction might have been dropped from mempool or failed
@@ -67,8 +82,13 @@ export function usePendingTransactionPolling(onConfirmed?: (txId: string, loanId
       // 'pending' status means tx is still in mempool, keep tracking
     }
 
-    // If any transaction was confirmed, refresh the loan data
-    if (anyConfirmed) {
+    // If any transactions were confirmed, invalidate cache and refresh data
+    if (confirmedTypes.size > 0) {
+      // Revalidate cache for each confirmed transaction type
+      await Promise.all(
+        Array.from(confirmedTypes).map((txType) => revalidateCache(txType))
+      )
+      // Then refresh the loan data
       loadLoansAndRepayments()
     }
   }, [pendingTransactions, removePendingTransaction, loadLoansAndRepayments, checkTransactionStatus, onConfirmed])

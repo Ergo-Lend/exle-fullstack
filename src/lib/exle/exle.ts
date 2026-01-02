@@ -341,7 +341,11 @@ export async function fetchNodeInfo(): Promise<NodeInfo | null> {
 
 	try {
 		const response = await fetch(url, {
-			headers: { accept: 'application/json' }
+			headers: { accept: 'application/json' },
+			next: {
+				revalidate: 300,
+				tags: ['metadata']
+			}
 		});
 
 		if (!response.ok) {
@@ -526,13 +530,20 @@ async function fetchAllBoxesByTokenId(
 async function fetchBoxesByTokenId(
 	tokenId: string,
 	offset: number = 0,
-	limit: number = 1
+	limit: number = 1,
+	cacheTags?: string[]
 ): Promise<NodeBox[]> {
 	const url = `${NODE_BASE_URL}/blockchain/box/unspent/byTokenId/${tokenId}?offset=${offset}&limit=${limit}&sortDirection=desc&includeUnconfirmed=true`;
 
 	try {
 		const response = await fetch(url, {
-			headers: { accept: 'application/json' }
+			headers: { accept: 'application/json' },
+			...(cacheTags && {
+				next: {
+					revalidate: 300,
+					tags: cacheTags
+				}
+			})
 		});
 
 		if (!response.ok) {
@@ -550,14 +561,20 @@ async function fetchBoxesByTokenId(
 	}
 }
 
-async function fetchUnspentBoxesByErgoTree(ergoTree: string): Promise<NodeBox[]> {
+async function fetchUnspentBoxesByErgoTree(ergoTree: string, cacheTags?: string[]): Promise<NodeBox[]> {
 	const url = `${NODE_BASE_URL}/blockchain/box/unspent/byErgoTree?offset=0&limit=100&sortDirection=desc&includeUnconfirmed=true&excludeMempoolSpent=true`;
 
 	try {
 		const response = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(ergoTree)
+			body: JSON.stringify(ergoTree),
+			...(cacheTags && {
+				next: {
+					revalidate: 300,
+					tags: cacheTags
+				}
+			})
 		});
 
 		if (!response.ok) {
@@ -578,35 +595,35 @@ async function fetchUnspentBoxesByErgoTree(ergoTree: string): Promise<NodeBox[]>
 }
 
 export function fetchRepayments() {
-	return fetchUnspentBoxesByErgoTree(EXLE_REPAYMENT_BOX_ERGOTREE);
+	return fetchUnspentBoxesByErgoTree(EXLE_REPAYMENT_BOX_ERGOTREE, ['repayments', 'metadata']);
 }
 
 export function fetchLoans() {
-	return fetchUnspentBoxesByErgoTree(EXLE_LEND_BOX_ERGOTREE);
+	return fetchUnspentBoxesByErgoTree(EXLE_LEND_BOX_ERGOTREE, ['loans', 'metadata']);
 }
 
 export async function fetchServiceBox(): Promise<NodeBox | undefined> {
-	const boxes = await fetchBoxesByTokenId(EXLE_SLE_SERVICE_NFT_ID);
+	const boxes = await fetchBoxesByTokenId(EXLE_SLE_SERVICE_NFT_ID, 0, 1, ['metadata']);
 	return boxes[0];
 }
 
 export async function fetchLendBox(tokenId: string): Promise<NodeBox | undefined> {
-	const boxes = await fetchBoxesByTokenId(tokenId);
+	const boxes = await fetchBoxesByTokenId(tokenId, 0, 1, ['loans', 'metadata']);
 	return boxes[0];
 }
 
 export async function fetchBoxByTokenId(tokenId: string): Promise<NodeBox | undefined> {
-	const boxes = await fetchBoxesByTokenId(tokenId);
+	const boxes = await fetchBoxesByTokenId(tokenId, 0, 1, ['metadata']);
 	return boxes[0];
 }
 
 export function fetchCrowdFundBoxesByLoanId(loanId: string) {
 	const crowdErgoTree = createCrowdBoxErgoTree(loanId);
-	return fetchUnspentBoxesByErgoTree(crowdErgoTree);
+	return fetchUnspentBoxesByErgoTree(crowdErgoTree, ['crowdfund', 'metadata']);
 }
 
 export async function fetchAllCrowdfundBoxes(): Promise<NodeBox[]> {
-	const maybeCrowdfundBoxes = await fetchBoxesByTokenId(EXLE_SLE_CROWD, 0, 100);
+	const maybeCrowdfundBoxes = await fetchBoxesByTokenId(EXLE_SLE_CROWD, 0, 100, ['crowdfund', 'metadata']);
 	return maybeCrowdfundBoxes.filter(isCrowdFundBox);
 }
 

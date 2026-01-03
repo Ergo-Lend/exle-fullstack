@@ -279,4 +279,3 @@ EXLE is like a **digital lending marketplace** where:
 
 The whole system runs without a bank - just code, math, and the Ergo blockchain.
 
-bump

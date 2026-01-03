@@ -4,32 +4,32 @@ const timelineEvents = [
   {
     year: '2024',
     quarter: 'Q2',
-    title: 'Roadmap Title',
-    text: 'EXLE started for the ErgoHack 2 hackathon as \'Ergo-Lend\' and we just kept going! We hope to help overcome some issues for the billions of',
+    title: 'Platform Redesign',
+    text: 'Complete UI/UX overhaul with modern design, improved mobile experience, and enhanced user flows for creating and managing loans.',
   },
   {
     year: '2023',
     quarter: 'Q4',
-    title: 'Roadmap Title',
-    text: 'EXLE started for the ErgoHack 2 hackathon as \'Ergo-Lend\' and we just kept going! We hope to help overcome some issues for the billions of',
+    title: 'Crowdfund Loans Launch',
+    text: 'Introduced crowdfunding capabilities allowing multiple lenders to collectively fund loan requests, expanding accessibility for borrowers.',
   },
   {
     year: '2023',
     quarter: 'Q1',
-    title: 'Roadmap Title',
-    text: 'EXLE started for the ErgoHack 2 hackathon as \'Ergo-Lend\' and we just kept going! We hope to help overcome some issues for the billions of',
+    title: 'Smart Contract V1.3',
+    text: 'Major smart contract upgrade with improved security, gas optimization, and support for multiple token types including SigUSD stablecoin.',
   },
   {
     year: '2022',
     quarter: 'Q3',
-    title: 'Roadmap Title',
-    text: 'EXLE started for the ErgoHack 2 hackathon as \'Ergo-Lend\' and we just kept going! We hope to help overcome some issues for the billions of',
+    title: 'Mainnet Beta Launch',
+    text: 'First public release on Ergo mainnet enabling real P2P lending transactions with Solofund single-lender loan support.',
   },
   {
     year: '2021',
     quarter: 'Q2',
-    title: 'Roadmap Title',
-    text: 'EXLE started for the ErgoHack 2 hackathon as \'Ergo-Lend\' and we just kept going! We hope to help overcome some issues for the billions of',
+    title: 'Project Inception',
+    text: 'EXLE began as "Ergo-Lend" at ErgoHack 2 hackathon, laying the foundation for decentralized P2P lending on the Ergo blockchain.',
   },
 ]
 
